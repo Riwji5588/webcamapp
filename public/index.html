@@ -429,11 +429,12 @@
       <label>🎯 ความละเอียด</label>
       <select id="resolutionSelect">
         <option value="640x480">📱 640×480 (SD)</option>
-        <option value="1280x720" selected>💎 1280×720 (HD)</option>
-        <option value="1920x1080">🌟 1920×1080 (Full HD)</option>
+        <option value="1280x720">💎 1280×720 (HD)</option>
+        <option value="1920x1080" selected>🌟 1920×1080 (Full HD)</option>
         <option value="auto">🤖 Auto (ตามกล้อง)</option>
       </select>
-      <div class="small">ความละเอียดสูง = ภาพชัดขึ้น แต่ใช้อินเทอร์เน็ตมากขึ้น</div>
+      <div class="small">ความละเอียดสูง = ภาพชัดขึ้น แต่ใช้อินเทอร์เน็ตมากขึ้น<br>
+      🌟 <strong>1920×1080 แนะนำสำหรับ OBS</strong> - คุณภาพสูงสุด</div>
     </div>
   </div>
 
@@ -596,6 +597,20 @@
     function initTransformCanvas() {
       canvas = document.getElementById('transformCanvas');
       ctx = canvas.getContext('2d');
+      
+      // ตั้งค่า canvas สำหรับคุณภาพสูง
+      if (canvas) {
+        // เพิ่มคุณภาพการ render
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        
+        // ตั้งค่าสำหรับ high-DPI displays
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        canvas.style.width = '100%';
+        canvas.style.height = 'auto';
+        
+        console.log('🎨 Canvas initialized for high quality rendering');
+      }
     }
 
     // Start video transformation stream
@@ -610,14 +625,25 @@
           return;
         }
         
-        // Set canvas size based on rotation
+        // Set canvas size based on rotation with high quality
+        let targetWidth, targetHeight;
         if (videoTransforms.rotation === 90 || videoTransforms.rotation === 270) {
-          canvas.width = video.videoHeight;
-          canvas.height = video.videoWidth;
+          targetWidth = video.videoHeight;
+          targetHeight = video.videoWidth;
         } else {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
+          targetWidth = video.videoWidth;
+          targetHeight = video.videoHeight;
         }
+        
+        // รักษาความละเอียดสูงสุดที่ 1920x1080
+        if (targetWidth > 1920 || targetHeight > 1080) {
+          const scale = Math.min(1920 / targetWidth, 1080 / targetHeight);
+          targetWidth = Math.floor(targetWidth * scale);
+          targetHeight = Math.floor(targetHeight * scale);
+        }
+        
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
         
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -642,12 +668,13 @@
         const scaleY = videoTransforms.flipV ? -1 : 1;
         ctx.scale(scaleX, scaleY);
         
-        // Draw video frame
+        // Draw video frame with high quality
         const drawWidth = videoTransforms.rotation === 90 || videoTransforms.rotation === 270 
           ? video.videoHeight : video.videoWidth;
         const drawHeight = videoTransforms.rotation === 90 || videoTransforms.rotation === 270 
           ? video.videoWidth : video.videoHeight;
           
+        // ใช้ high quality drawing
         ctx.drawImage(video, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
         
         // Restore context state
@@ -657,6 +684,13 @@
       }
       
       drawFrame();
+      
+      // สร้าง transformed stream ด้วยคุณภาพสูง
+      if (canvas.captureStream) {
+        const fps = parseInt(document.getElementById('fpsSelect').value) || 30;
+        transformedStream = canvas.captureStream(fps);
+        console.log(`🎥 Created high quality transformed stream at ${fps}fps`);
+      }
     }
 
     // Update transformed stream for peer connections
@@ -838,6 +872,47 @@
           button.classList.remove('success');
         }, 2000);
       }
+    }
+
+    // ฟังก์ชันปรับปรุง SDP เพื่อคุณภาพสูง
+    function optimizeSDPForHighQuality(sdp) {
+      let lines = sdp.split('\n');
+      let modified = false;
+      
+      for (let i = 0; i < lines.length; i++) {
+        // ปรับ bitrate สำหรับ video
+        if (lines[i].includes('m=video')) {
+          // หา codec ที่เหมาะสม
+          for (let j = i + 1; j < lines.length && !lines[j].startsWith('m='); j++) {
+            // ตั้งค่า max bitrate สำหรับ 1080p (5000 kbps)
+            if (lines[j].includes('a=rtcp-fb') && lines[j].includes('96')) {
+              lines.splice(j + 1, 0, 'a=fmtp:96 max-fs=8160;max-fr=30;max-br=5000;max-dpb=40');
+              modified = true;
+              break;
+            }
+            // หรือเพิ่ม bandwidth limit
+            if (lines[j].includes('a=mid:')) {
+              lines.splice(j + 1, 0, 'b=AS:5000');
+              lines.splice(j + 2, 0, 'b=CT:5000');
+              modified = true;
+              break;
+            }
+          }
+        }
+        
+        // ปรับ profile level สำหรับ H.264
+        if (lines[i].includes('a=fmtp:') && lines[i].includes('profile-level-id')) {
+          // ใช้ High profile สำหรับคุณภาพดีขึ้น
+          lines[i] = lines[i].replace(/profile-level-id=[^;]+/, 'profile-level-id=64001f');
+          modified = true;
+        }
+      }
+      
+      if (modified) {
+        console.log('🎥 SDP optimized for high quality 1080p streaming');
+      }
+      
+      return lines.join('\n');
     }
 
     // Event listeners
@@ -1031,7 +1106,11 @@
         peerConnections.get(viewerId).close();
       }
       
-      const pc = new RTCPeerConnection({ iceServers });
+      const pc = new RTCPeerConnection({ 
+        iceServers,
+        // เพิ่มการตั้งค่าสำหรับคุณภาพสูง
+        iceCandidatePoolSize: 10
+      });
       peerConnections.set(viewerId, pc);
       
       // Add tracks from transformed stream or original stream
@@ -1057,7 +1136,15 @@
         }
       };
 
-      const offer = await pc.createOffer({ offerToReceiveVideo: false, offerToReceiveAudio: false });
+      const offer = await pc.createOffer({ 
+        offerToReceiveVideo: false, 
+        offerToReceiveAudio: false 
+      });
+      
+      // แก้ไข SDP เพื่อปรับปรุงคุณภาพสำหรับ 1080p
+      const modifiedSDP = optimizeSDPForHighQuality(offer.sdp);
+      offer.sdp = modifiedSDP;
+      
       await pc.setLocalDescription(offer);
       ws?.send(JSON.stringify({ 
         type: 'offer', 
