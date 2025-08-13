@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📊 Admin Dashboard - WebCam App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .table {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Admin Dashboard</h1>
+            <p>WebCam App Analytics & Statistics</p>
+            <button class="refresh-btn" onclick="loadStats()">🔄 Refresh Data</button>
+        </div>
+
+        <div class="stats-grid" id="overallStats">
+            <!-- Overall stats will be loaded here -->
+        </div>
+
+        <div class="section">
+            <h2>📈 Daily Statistics (Last 30 Days)</h2>
+            <div id="dailyStats" class="loading">Loading...</div>
+        </div>
+
+        <div class="section">
+            <h2>🏆 Popular Rooms</h2>
+            <div id="popularRooms" class="loading">Loading...</div>
+        </div>
+
+        <div class="section">
+            <h2>🕐 Recent Connections</h2>
+            <div id="recentConnections" class="loading">Loading...</div>
+        </div>
+    </div>
+
+    <script>
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderOverallStats(result.data.overall);
+                    renderDailyStats(result.data.daily);
+                    renderPopularRooms(result.data.popularRooms);
+                    renderRecentConnections(result.data.recentConnections);
+                } else {
+                    showError('Failed to load statistics');
+                }
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                showError('Network error: ' + error.message);
+            }
+        }
+
+        function renderOverallStats(stats) {
+            const container = document.getElementById('overallStats');
+            container.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Total Sessions</div>
+                    <div class="stat-number">${stats.total_sessions || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Total Rooms</div>
+                    <div class="stat-number">${stats.total_rooms || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Active Sessions</div>
+                    <div class="stat-number">${stats.active_sessions || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Duration</div>
+                    <div class="stat-number">${Math.round(stats.avg_session_duration || 0)}s</div>
+                </div>
+            `;
+        }
+
+        function renderDailyStats(stats) {
+            const container = document.getElementById('dailyStats');
+            if (!stats || stats.length === 0) {
+                container.innerHTML = '<p>No daily statistics available</p>';
+                return;
+            }
+
+            const table = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Connections</th>
+                            <th>Unique Rooms</th>
+                            <th>Senders</th>
+                            <th>Viewers</th>
+                            <th>Avg Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${stats.map(stat => `
+                            <tr>
+                                <td>${stat.date}</td>
+                                <td>${stat.total_connections}</td>
+                                <td>${stat.unique_rooms}</td>
+                                <td>${stat.senders}</td>
+                                <td>${stat.viewers}</td>
+                                <td>${Math.round(stat.avg_duration || 0)}s</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = table;
+        }
+
+        function renderPopularRooms(rooms) {
+            const container = document.getElementById('popularRooms');
+            if (!rooms || rooms.length === 0) {
+                container.innerHTML = '<p>No room statistics available</p>';
+                return;
+            }
+
+            const table = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Room ID</th>
+                            <th>Total Sessions</th>
+                            <th>Peak Concurrent</th>
+                            <th>Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rooms.map(room => `
+                            <tr>
+                                <td><strong>${room.room_id}</strong></td>
+                                <td>${room.total_sessions}</td>
+                                <td>${room.peak_concurrent}</td>
+                                <td>${new Date(room.updated_at).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = table;
+        }
+
+        function renderRecentConnections(connections) {
+            const container = document.getElementById('recentConnections');
+            if (!connections || connections.length === 0) {
+                container.innerHTML = '<p>No recent connections</p>';
+                return;
+            }
+
+            const table = `
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Session ID</th>
+                            <th>Room</th>
+                            <th>Role</th>
+                            <th>IP Address</th>
+                            <th>Connected</th>
+                            <th>Duration</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${connections.map(conn => `
+                            <tr>
+                                <td><code>${conn.session_id.substring(0, 8)}...</code></td>
+                                <td><strong>${conn.room_id}</strong></td>
+                                <td>${conn.role}</td>
+                                <td>${conn.ip_address}</td>
+                                <td>${new Date(conn.connected_at).toLocaleString()}</td>
+                                <td>${conn.duration_seconds ? Math.round(conn.duration_seconds) + 's' : '-'}</td>
+                                <td>
+                                    <span class="status-badge status-${conn.status}">
+                                        ${conn.status}
+                                    </span>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = table;
+        }
+
+        function showError(message) {
+            const containers = ['overallStats', 'dailyStats', 'popularRooms', 'recentConnections'];
+            containers.forEach(id => {
+                document.getElementById(id).innerHTML = `<div class="error">${message}</div>`;
+            });
+        }
+
+        // Load stats on page load
+        loadStats();
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadStats, 30000);
+    </script>
+</body>
+</html>

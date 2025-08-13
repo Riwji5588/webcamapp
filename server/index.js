@@ -1,6 +1,10 @@
 const express = require('express');
 const { WebSocketServer } = require('ws');
 const { createServer } = require('http');
+const Logger = require('./logger');
+
+// Initialize logger
+const logger = new Logger();
 
 // UUID generation fallback for older Node.js versions
 function generateUUID() {
@@ -19,6 +23,54 @@ function generateUUID() {
 
 const app = express();
 app.use(express.static('public'));
+app.use(express.json());
+
+// API endpoints สำหรับดูสถิติ
+app.get('/api/stats', async (req, res) => {
+  try {
+    const [dailyStats, popularRooms, recentConnections, overallStats] = await Promise.all([
+      logger.getDailyStats(),
+      logger.getPopularRooms(10),
+      logger.getRecentConnections(20),
+      logger.getOverallStats()
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        overall: overallStats,
+        daily: dailyStats,
+        popularRooms,
+        recentConnections
+      }
+    });
+  } catch (error) {
+    console.error('❌ Failed to get stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to retrieve statistics'
+    });
+  }
+});
+
+app.get('/api/stats/daily', async (req, res) => {
+  try {
+    const stats = await logger.getDailyStats();
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/stats/rooms', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const rooms = await logger.getPopularRooms(limit);
+    res.json({ success: true, data: rooms });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 const server = createServer(app);
 const wss = new WebSocketServer({ 
@@ -58,13 +110,17 @@ function safeSend(ws, obj) {
   }
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   ws.id = generateUUID();
   ws.role = null; // 'sender' | 'viewer'
   ws.roomId = null;
   ws.isAlive = true; // สำหรับ heartbeat
+  
+  // เก็บข้อมูล IP และ User Agent สำหรับ logging
+  ws.ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress;
+  ws.userAgent = req.headers['user-agent'] || 'Unknown';
 
-  console.log(`🔗 New connection: ${ws.id}`);
+  console.log(`🔗 New connection: ${ws.id} from ${ws.ipAddress}`);
 
   // Heartbeat response
   ws.on('pong', () => {
@@ -83,11 +139,17 @@ wss.on('connection', (ws) => {
       ws.role = role;
       const room = getOrCreateRoom(roomId);
       
+      // Log การเชื่อมต่อใหม่
+      logger.logConnection(ws.id, roomId, role, ws.ipAddress, ws.userAgent);
+      
       if (role === 'sender') {
         room.senders.add(ws);
         // Notify ALL viewers that a sender is available
         room.viewers.forEach(v => safeSend(v, { type: 'sender-available' }));
         console.log(`📹 Sender ${ws.id} joined room "${roomId}" (${room.viewers.size} viewers waiting)`);
+        
+        // Log event
+        logger.logEvent(ws.id, 'sender_joined', { roomId, viewersCount: room.viewers.size });
       } else {
         room.viewers.add(ws);
         // If a sender exists, tell this new viewer to request offer
@@ -97,6 +159,9 @@ wss.on('connection', (ws) => {
           room.senders.forEach(s => safeSend(s, { type: 'need-offer', from: ws.id }));
         }
         console.log(`📺 Viewer ${ws.id} joined room "${roomId}" (Total viewers: ${room.viewers.size})`);
+        
+        // Log event
+        logger.logEvent(ws.id, 'viewer_joined', { roomId, sendersCount: room.senders.size });
       }
       return;
     }
@@ -116,11 +181,13 @@ wss.on('connection', (ws) => {
             if (targetViewer) {
               safeSend(targetViewer, { ...data, from: ws.id });
               console.log(`📡 Sender sending offer to viewer ${targetId}`);
+              logger.logEvent(ws.id, 'offer_sent', { targetId, roomId: ws.roomId });
             }
           } else {
             // Broadcast to all viewers (for backward compatibility)
             room.viewers.forEach(v => safeSend(v, { ...data, from: ws.id }));
             console.log(`📡 Sender broadcasting offer to ${room.viewers.size} viewers`);
+            logger.logEvent(ws.id, 'offer_broadcast', { viewersCount: room.viewers.size, roomId: ws.roomId });
           }
         } else {
           // Other messages go to all viewers
@@ -141,6 +208,9 @@ wss.on('connection', (ws) => {
     const { roomId, role } = ws;
     console.log(`🔌 Connection ${ws.id} closed (code: ${code}, reason: ${reason || 'unknown'})`);
     
+    // Log disconnection
+    logger.logDisconnection(ws.id);
+    
     if (!roomId) return;
     const room = rooms.get(roomId);
     if (!room) return;
@@ -149,9 +219,11 @@ wss.on('connection', (ws) => {
       room.senders.delete(ws);
       room.viewers.forEach(v => safeSend(v, { type: 'sender-gone' }));
       console.log(`📹❌ Sender ${ws.id} left room "${roomId}" (${room.viewers.size} viewers affected)`);
+      logger.logEvent(ws.id, 'sender_left', { roomId, viewersAffected: room.viewers.size });
     } else if (role === 'viewer') {
       room.viewers.delete(ws);
       console.log(`📺❌ Viewer ${ws.id} left room "${roomId}" (${room.viewers.size} viewers remaining)`);
+      logger.logEvent(ws.id, 'viewer_left', { roomId, viewersRemaining: room.viewers.size });
     }
     
     if (room.senders.size === 0 && room.viewers.size === 0) {
@@ -173,7 +245,8 @@ process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, closing server...');
   clearInterval(heartbeatInterval);
   wss.close(() => {
-    server.close(() => {
+    server.close(async () => {
+      await logger.close();
       console.log('🏁 Server closed gracefully');
       process.exit(0);
     });
@@ -184,7 +257,8 @@ process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, closing server...');
   clearInterval(heartbeatInterval);
   wss.close(() => {
-    server.close(() => {
+    server.close(async () => {
+      await logger.close();
       console.log('🏁 Server closed gracefully');
       process.exit(0);
     });
