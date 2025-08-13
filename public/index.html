@@ -1,0 +1,1164 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>📱 Phone Camera → OBS</title>
+  <style>
+    * { box-sizing: border-box; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: #333;
+    }
+    
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+    }
+    
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    h2 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .subtitle {
+      color: #666;
+      font-size: 14px;
+      margin-top: 4px;
+    }
+    
+    .section {
+      background: #f8f9ff;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 16px 0;
+      border: 1px solid rgba(102, 126, 234, 0.1);
+    }
+    
+    .section-title {
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    
+    .form-group {
+      margin: 16px 0;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    
+    input[type="text"], select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 16px;
+      background: white;
+      transition: all 0.2s ease;
+    }
+    
+    input[type="text"]:focus, select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    input[readonly] {
+      background: #f7fafc !important;
+      border-color: #e2e8f0 !important;
+      color: #4a5568;
+    }
+    
+    button {
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 20px;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    }
+    
+    .btn-secondary {
+      background: #48bb78;
+      color: white;
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+    
+    .btn-secondary:hover {
+      background: #38a169;
+      transform: translateY(-1px);
+    }
+    
+    .btn-copy {
+      background: #4299e1;
+      color: white;
+      padding: 6px 10px;
+      font-size: 11px;
+    }
+    
+    .btn-copy:hover {
+      background: #3182ce;
+    }
+    
+    .btn-copy.success {
+      background: #48bb78 !important;
+    }
+    
+    .flex {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    
+    .flex-1 {
+      flex: 1;
+    }
+    
+    .small {
+      font-size: 12px;
+      color: #718096;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    
+    .warn {
+      background: linear-gradient(135deg, #fed7af 0%, #fbb6ce 100%);
+      border: 1px solid #f6ad55;
+      color: #744210;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    
+    .info {
+      background: linear-gradient(135deg, #bee3f8 0%, #90cdf4 100%);
+      border-left: 4px solid #4299e1;
+      padding: 16px;
+      margin: 16px 0;
+      border-radius: 8px;
+      color: #2c5282;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    
+    .links-section {
+      background: linear-gradient(135deg, #c6f6d5 0%, #9ae6b4 100%);
+      border: 1px solid #68d391;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 16px 0;
+    }
+    
+    .links-title {
+      color: #276749;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .link-item {
+      margin: 10px 0;
+    }
+    
+    .link-label {
+      font-size: 12px;
+      color: #2f855a;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    
+    video {
+      width: 100%;
+      max-height: 50vh;
+      background: #000;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      margin: 16px 0;
+      transition: transform 0.3s ease;
+    }
+    
+    .video-container {
+      position: relative;
+      display: inline-block;
+      width: 100%;
+    }
+    
+    .video-controls {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .video-container:hover .video-controls {
+      opacity: 1;
+    }
+    
+    .video-btn {
+      background: rgba(0, 0, 0, 0.7);
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s ease;
+      backdrop-filter: blur(10px);
+    }
+    
+    .video-btn:hover {
+      background: rgba(0, 0, 0, 0.9);
+      transform: scale(1.1);
+    }
+    
+    .video-btn.active {
+      background: #667eea;
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.3);
+    }
+    
+    /* Video transform classes */
+    .video-flip-h {
+      transform: scaleX(-1);
+    }
+    
+    .video-flip-v {
+      transform: scaleY(-1);
+    }
+    
+    .video-flip-both {
+      transform: scaleX(-1) scaleY(-1);
+    }
+    
+    .video-rotate-90 {
+      transform: rotate(90deg);
+    }
+    
+    .video-rotate-180 {
+      transform: rotate(180deg);
+    }
+    
+    .video-rotate-270 {
+      transform: rotate(270deg);
+    }
+    
+    /* Combine transforms */
+    .video-flip-h.video-rotate-90 {
+      transform: scaleX(-1) rotate(90deg);
+    }
+    
+    .video-flip-h.video-rotate-180 {
+      transform: scaleX(-1) rotate(180deg);
+    }
+    
+    .video-flip-h.video-rotate-270 {
+      transform: scaleX(-1) rotate(270deg);
+    }
+    
+    /* Hidden canvas for video processing */
+    #transformCanvas {
+      display: none;
+    }
+    
+    .camera-info {
+      background: linear-gradient(135deg, #faf5ff 0%, #e9d8fd 100%);
+      border: 1px solid #b794f6;
+      border-radius: 8px;
+      padding: 12px;
+      margin: 8px 0;
+      font-size: 13px;
+      color: #553c9a;
+    }
+    
+    .status-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #48bb78;
+      display: inline-block;
+      margin-right: 8px;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin: 20px 0;
+    }
+    
+    @media (max-width: 480px) {
+      body { padding: 12px; }
+      .container { padding: 16px; }
+      .controls { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h2>� Phone Camera → OBS</h2>
+      <div class="subtitle">ส่งภาพจากกล้องมือถือไปยัง OBS Studio</div>
+    </header>
+
+    <div id="httpsWarn" class="warn" style="display:none">
+      🔒 <strong>ต้องใช้ HTTPS:</strong> iPhone/iPad ต้องเปิดผ่าน https:// เพื่อใช้กล้องได้
+    </div>
+
+    <div class="info">
+      💡 <strong>เทิปการใช้งาน:</strong>
+      <br>• ตั้งค่า "ไม่ให้หน้าจอดับ" ในเบราว์เซอร์
+      <br>• แตะหน้าจอเป็นระยะ ๆ เพื่อให้กล้องทำงานต่อ
+      <br>• ระบบจะ restart อัตโนมัติเมื่อกล้องหยุดทำงาน
+    </div>
+
+    <div class="section">
+      <div class="section-title">🎲 Room ID</div>
+      <div class="form-group">
+        <div class="flex">
+          <input id="room" type="text" readonly class="flex-1" />
+          <button id="generateRoomBtn" class="btn-secondary">🎲 สุ่มใหม่</button>
+        </div>
+        <div class="small">Room ID จะถูกสร้างอัตโนมัติ สามารถสุ่มใหม่ได้ตลอดเวลา</div>
+      </div>
+    </div>
+
+    <div id="linkSection" class="links-section" style="display: none;">
+      <div class="links-title">🔗 ลิงก์สำหรับ OBS Studio</div>
+      <div class="link-item">
+        <div class="link-label">📺 OBS Browser Source URL:</div>
+        <div class="flex">
+          <input id="obsLink" type="text" readonly class="flex-1" style="font-size: 11px;" />
+          <button id="copyObsBtn" class="btn-copy">📋 Copy</button>
+        </div>
+      </div>
+      <div class="link-item">
+        <div class="link-label">🌐 Web Viewer URL:</div>
+        <div class="flex">
+          <input id="viewLink" type="text" readonly class="flex-1" style="font-size: 11px;" />
+          <button id="copyViewBtn" class="btn-copy">📋 Copy</button>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📷 การตั้งค่ากล้อง</div>
+    
+    <div class="form-group">
+      <label>📱 เลือกกล้อง</label>
+      <select id="cameraSelect"></select>
+      <div class="small" id="camHelp" style="display:none">
+        📱 บน iPhone รายการกล้องอาจไม่แสดงชื่อ แต่ยังสามารถเลือก Front/Back ได้
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>⚡ ความเร็วเฟรม (FPS)</label>
+      <select id="fpsSelect">
+        <option value="15">🔋 15 FPS (ประหยัดแบตเตอรี่)</option>
+        <option value="24">📺 24 FPS (ภาพยนตร์)</option>
+        <option value="30" selected>✨ 30 FPS (มาตรฐาน)</option>
+        <option value="60">🚀 60 FPS (ลื่นสุด)</option>
+      </select>
+      <div class="small">FPS สูง = ภาพลื่นขึ้น แต่ใช้แบตเตอรี่และอินเทอร์เน็ตมากขึ้น</div>
+    </div>
+
+    <div class="form-group">
+      <label>🎯 ความละเอียด</label>
+      <select id="resolutionSelect">
+        <option value="640x480">📱 640×480 (SD)</option>
+        <option value="1280x720" selected>💎 1280×720 (HD)</option>
+        <option value="1920x1080">🌟 1920×1080 (Full HD)</option>
+        <option value="auto">🤖 Auto (ตามกล้อง)</option>
+      </select>
+      <div class="small">ความละเอียดสูง = ภาพชัดขึ้น แต่ใช้อินเทอร์เน็ตมากขึ้น</div>
+    </div>
+  </div>
+
+  <div class="camera-info" id="actualSettings" style="display: none;">
+    <div class="status-indicator"></div>
+    <strong>ค่าที่ใช้จริง:</strong> <span id="actualSettingsText"></span>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn" class="btn-primary flex-1">
+      🎥 เริ่มส่งภาพ
+    </button>
+    <button id="stopBtn" class="btn-primary flex-1" disabled style="background: #e53e3e;">
+      ⏹️ หยุด
+    </button>
+  </div>
+
+  <div class="video-container">
+    <video id="preview" playsinline autoplay muted></video>
+    <canvas id="transformCanvas"></canvas>
+    <div class="video-controls">
+      <button id="flipHBtn" class="video-btn" title="พลิกแนวนอน (Mirror)">
+        ↔️
+      </button>
+      <button id="flipVBtn" class="video-btn" title="พลิกแนวตั้ง">
+        ↕️
+      </button>
+      <button id="rotateBtn" class="video-btn" title="หมุนภาพ 90°">
+        🔄
+      </button>
+      <button id="resetBtn" class="video-btn" title="รีเซ็ตมุมมอง">
+        🔧
+      </button>
+    </div>
+  </div>
+
+  <script>
+    
+    const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+    let ws, localStream, transformedStream;
+    let roomIdGlobal = null;
+    // Multi-viewer support: Map of viewer ID -> peer connection
+    const peerConnections = new Map();
+    // Keep screen awake
+    let wakeLock = null;
+    let isStreaming = false;
+    
+    // Video transform state
+    let videoTransforms = {
+      flipH: false,
+      flipV: false,
+      rotation: 0 // 0, 90, 180, 270
+    };
+    
+    // Canvas for video transformation
+    let canvas, ctx;
+    let animationFrame;
+
+    const iceServers = [
+      { urls: ['stun:stun.l.google.com:19302'] },
+      { urls: ['stun:stun1.l.google.com:19302'] }
+    ];
+
+    // Keep screen awake functionality
+    async function requestWakeLock() {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+          console.log('🌟 เปิด Screen Wake Lock สำเร็จ');
+          
+          wakeLock.addEventListener('release', () => {
+            console.log('💤 Screen Wake Lock ถูกปล่อย');
+          });
+        }
+      } catch (err) {
+        console.warn('⚠️ ไม่สามารถเปิด Screen Wake Lock:', err);
+      }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
+        console.log('💤 ปิด Screen Wake Lock แล้ว');
+      }
+    }
+
+    // Video transform functions
+    function applyVideoTransform() {
+      const video = document.getElementById('preview');
+      let transformClasses = [];
+      
+      // Clear existing transform classes
+      video.className = video.className.replace(/video-(flip-h|flip-v|flip-both|rotate-\d+)/g, '');
+      
+      // Apply horizontal flip
+      if (videoTransforms.flipH) {
+        transformClasses.push('video-flip-h');
+      }
+      
+      // Apply vertical flip
+      if (videoTransforms.flipV) {
+        transformClasses.push('video-flip-v');
+      }
+      
+      // Apply rotation
+      if (videoTransforms.rotation !== 0) {
+        transformClasses.push(`video-rotate-${videoTransforms.rotation}`);
+      }
+      
+      // Add classes to video element
+      video.classList.add(...transformClasses);
+      
+      console.log('🎥 Video transform applied:', videoTransforms);
+    }
+
+    function toggleFlipHorizontal() {
+      videoTransforms.flipH = !videoTransforms.flipH;
+      applyVideoTransform();
+      updateTransformedStream();
+      
+      const btn = document.getElementById('flipHBtn');
+      btn.classList.toggle('active', videoTransforms.flipH);
+    }
+
+    function toggleFlipVertical() {
+      videoTransforms.flipV = !videoTransforms.flipV;
+      applyVideoTransform();
+      updateTransformedStream();
+      
+      const btn = document.getElementById('flipVBtn');
+      btn.classList.toggle('active', videoTransforms.flipV);
+    }
+
+    function rotateVideo() {
+      videoTransforms.rotation = (videoTransforms.rotation + 90) % 360;
+      applyVideoTransform();
+      updateTransformedStream();
+      
+      const btn = document.getElementById('rotateBtn');
+      btn.classList.toggle('active', videoTransforms.rotation !== 0);
+    }
+
+    function resetVideoTransform() {
+      videoTransforms = {
+        flipH: false,
+        flipV: false,
+        rotation: 0
+      };
+      applyVideoTransform();
+      updateTransformedStream();
+      
+      // Update button states
+      document.getElementById('flipHBtn').classList.remove('active');
+      document.getElementById('flipVBtn').classList.remove('active');
+      document.getElementById('rotateBtn').classList.remove('active');
+    }
+
+    // Initialize canvas for video transformation
+    function initTransformCanvas() {
+      canvas = document.getElementById('transformCanvas');
+      ctx = canvas.getContext('2d');
+    }
+
+    // Start video transformation stream
+    function startTransformedStream() {
+      if (!canvas || !localStream) return;
+      
+      const video = document.getElementById('preview');
+      
+      function drawFrame() {
+        if (!video.videoWidth || !video.videoHeight) {
+          animationFrame = requestAnimationFrame(drawFrame);
+          return;
+        }
+        
+        // Set canvas size based on rotation
+        if (videoTransforms.rotation === 90 || videoTransforms.rotation === 270) {
+          canvas.width = video.videoHeight;
+          canvas.height = video.videoWidth;
+        } else {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+        }
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Save context state
+        ctx.save();
+        
+        // Apply transformations
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        
+        // Move to center for rotation
+        ctx.translate(centerX, centerY);
+        
+        // Apply rotation
+        if (videoTransforms.rotation !== 0) {
+          ctx.rotate((videoTransforms.rotation * Math.PI) / 180);
+        }
+        
+        // Apply flips
+        const scaleX = videoTransforms.flipH ? -1 : 1;
+        const scaleY = videoTransforms.flipV ? -1 : 1;
+        ctx.scale(scaleX, scaleY);
+        
+        // Draw video frame
+        const drawWidth = videoTransforms.rotation === 90 || videoTransforms.rotation === 270 
+          ? video.videoHeight : video.videoWidth;
+        const drawHeight = videoTransforms.rotation === 90 || videoTransforms.rotation === 270 
+          ? video.videoWidth : video.videoHeight;
+          
+        ctx.drawImage(video, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+        
+        // Restore context state
+        ctx.restore();
+        
+        animationFrame = requestAnimationFrame(drawFrame);
+      }
+      
+      drawFrame();
+    }
+
+    // Update transformed stream for peer connections
+    function updateTransformedStream() {
+      if (!canvas) return;
+      
+      // Stop existing transformed stream
+      if (transformedStream) {
+        transformedStream.getTracks().forEach(track => track.stop());
+      }
+      
+      // Create new transformed stream from canvas
+      if (hasTransforms()) {
+        transformedStream = canvas.captureStream(30); // 30 FPS
+        console.log('🎨 Created transformed stream');
+      } else {
+        transformedStream = null;
+        console.log('🎨 Using original stream');
+      }
+      
+      // Update all peer connections with new stream
+      updatePeerConnections();
+    }
+
+    // Check if any transforms are active
+    function hasTransforms() {
+      return videoTransforms.flipH || videoTransforms.flipV || videoTransforms.rotation !== 0;
+    }
+
+    // Update all peer connections with current stream
+    function updatePeerConnections() {
+      const streamToSend = transformedStream || localStream;
+      if (!streamToSend) return;
+      
+      peerConnections.forEach((pc, viewerId) => {
+        const videoTrack = streamToSend.getVideoTracks()[0];
+        if (videoTrack) {
+          const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+          if (sender) {
+            sender.replaceTrack(videoTrack).then(() => {
+              console.log(`🔄 Updated video track for viewer ${viewerId}`);
+            }).catch(e => {
+              console.warn(`❌ Failed to update track for viewer ${viewerId}:`, e);
+            });
+          }
+        }
+      });
+    }
+
+    // Auto-reconnection when page becomes visible again
+    document.addEventListener('visibilitychange', async () => {
+      if (!document.hidden && isStreaming && roomIdGlobal) {
+        console.log('👁️ หน้าเว็บกลับมาแล้ว - ตรวจสอบการเชื่อมต่อ');
+        
+        // Re-request wake lock
+        await requestWakeLock();
+        
+        // Check if stream is still active
+        if (localStream && localStream.getTracks().some(track => !track.enabled)) {
+          console.log('🔄 Camera tracks ถูกปิด - เริ่มใหม่');
+          await restart();
+        }
+      }
+    });
+
+    const roomEl = document.getElementById('room');
+    const generateRoomBtn = document.getElementById('generateRoomBtn');
+    const linkSection = document.getElementById('linkSection');
+    const obsLink = document.getElementById('obsLink');
+    const viewLink = document.getElementById('viewLink');
+    const copyObsBtn = document.getElementById('copyObsBtn');
+    const copyViewBtn = document.getElementById('copyViewBtn');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const fpsSelect = document.getElementById('fpsSelect');
+    const resolutionSelect = document.getElementById('resolutionSelect');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const preview = document.getElementById('preview');
+    
+    // Video control elements
+    const flipHBtn = document.getElementById('flipHBtn');
+    const flipVBtn = document.getElementById('flipVBtn');
+    const rotateBtn = document.getElementById('rotateBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    function addOption(value, label) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      cameraSelect.appendChild(opt);
+    }
+
+    async function listCameras() {
+      cameraSelect.innerHTML = '';
+      const isSecure = window.isSecureContext || location.hostname === 'localhost';
+      const httpsWarn = document.getElementById('httpsWarn');
+      httpsWarn.style.display = isSecure ? 'none' : 'block';
+      if (isiOS) { document.getElementById('camHelp').style.display = 'block'; }
+
+      let cams = [];
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        cams = devices.filter(d => d.kind === 'videoinput');
+      } catch {}
+
+      // iOS fallback: always provide Front/Back options using facingMode
+      if (isiOS) {
+        addOption('facing:user', 'Front (user)');
+        addOption('facing:environment', 'Back (environment)');
+      }
+
+      // Add any discovered deviceIds
+      cams.forEach((c, idx) => {
+        // Hide duplicates of our facing options on iOS (labels often blank)
+        if (isiOS && !c.deviceId) return;
+        addOption(`device:${c.deviceId}`, c.label || `Camera ${idx+1}`);
+      });
+
+      // If nothing added at all, provide at least a default
+      if (cameraSelect.options.length === 0) {
+        addOption('facing:environment', 'Default (Back)');
+      }
+    }
+
+    // Generate random Room ID
+    function generateRoomId() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let result = '';
+      for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return result;
+    }
+
+    // Update links when room ID changes
+    function updateLinks() {
+      const roomId = roomEl.value.trim();
+      if (!roomId) {
+        linkSection.style.display = 'none';
+        return;
+      }
+
+      const baseUrl = window.location.origin;
+      const obsUrl = `${baseUrl}/obs.html?room=${roomId}&clean=1`;
+      const viewUrl = `${baseUrl}/view.html?room=${roomId}`;
+
+      obsLink.value = obsUrl;
+      viewLink.value = viewUrl;
+      linkSection.style.display = 'block';
+    }
+
+    // Copy to clipboard with visual feedback
+    async function copyToClipboard(text, button) {
+      try {
+        await navigator.clipboard.writeText(text);
+        const originalText = button.textContent;
+        button.textContent = '✅ Copied!';
+        button.classList.add('success');
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.classList.remove('success');
+        }, 2000);
+      } catch (err) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        
+        const originalText = button.textContent;
+        button.textContent = '✅ Copied!';
+        button.classList.add('success');
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.classList.remove('success');
+        }, 2000);
+      }
+    }
+
+    // Event listeners
+    generateRoomBtn.addEventListener('click', () => {
+      roomEl.value = generateRoomId();
+      updateLinks();
+    });
+
+    copyObsBtn.addEventListener('click', () => {
+      copyToClipboard(obsLink.value, copyObsBtn);
+    });
+
+    copyViewBtn.addEventListener('click', () => {
+      copyToClipboard(viewLink.value, copyViewBtn);
+    });
+
+    // Video control event listeners
+    flipHBtn.addEventListener('click', toggleFlipHorizontal);
+    flipVBtn.addEventListener('click', toggleFlipVertical);
+    rotateBtn.addEventListener('click', rotateVideo);
+    resetBtn.addEventListener('click', resetVideoTransform);
+
+    // Auto-generate room ID on page load
+    function initializeRoom() {
+      if (!roomEl.value) {
+        roomEl.value = generateRoomId();
+        updateLinks();
+      }
+    }
+
+    async function start() {
+      const roomId = roomEl.value.trim();
+      if (!roomId) { 
+        alert('กรุณากด "สุ่มใหม่" เพื่อสร้าง Room ID'); 
+        return; 
+      }
+      roomIdGlobal = roomId;
+
+      // Build video constraints with FPS and resolution
+      let videoConstraint;
+      const sel = cameraSelect.value;
+      const fps = parseInt(fpsSelect.value);
+      const resolution = resolutionSelect.value;
+      
+      // Camera selection
+      if (sel?.startsWith('device:')) {
+        const id = sel.slice('device:'.length);
+        videoConstraint = { deviceId: { exact: id } };
+      } else if (sel?.startsWith('facing:')) {
+        const facing = sel.slice('facing:'.length);
+        videoConstraint = { facingMode: facing };
+      } else {
+        videoConstraint = { facingMode: 'environment' };
+      }
+      
+      // Add FPS constraint
+      videoConstraint.frameRate = { ideal: fps, max: fps };
+      
+      // Add resolution constraint
+      if (resolution !== 'auto') {
+        const [width, height] = resolution.split('x').map(Number);
+        videoConstraint.width = { ideal: width };
+        videoConstraint.height = { ideal: height };
+      }
+      
+      console.log('Video constraints:', videoConstraint);
+      const constraints = { video: videoConstraint, audio: false };
+      
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        preview.srcObject = localStream;
+        
+        // Display actual stream settings
+        const track = localStream.getVideoTracks()[0];
+        const settings = track.getSettings();
+        console.log('Actual camera settings:', settings);
+        
+        // Show actual FPS and resolution in UI
+        const actualInfo = `${settings.width}×${settings.height} @ ${settings.frameRate}fps`;
+        document.getElementById('actualSettingsText').textContent = actualInfo;
+        document.getElementById('actualSettings').style.display = 'block';
+      } catch (error) {
+        alert('ไม่สามารถเปิดกล้องได้: ' + error.message);
+        console.error('Camera error:', error);
+        return;
+      }
+
+      await ensureWs(roomId);
+      // Remove old createPeer call - will create per-viewer
+      
+      // Initialize canvas transformation
+      initTransformCanvas();
+      startTransformedStream();
+      
+      // Keep screen awake while streaming
+      await requestWakeLock();
+      isStreaming = true;
+
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    }
+
+    async function stop() {
+      isStreaming = false;
+      releaseWakeLock();
+      
+      // Stop canvas transformation
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
+      if (transformedStream) {
+        transformedStream.getTracks().forEach(t => t.stop());
+        transformedStream = null;
+      }
+      
+      // Close all peer connections
+      peerConnections.forEach((pc, viewerId) => {
+        pc.close();
+        console.log(`🔌 ปิดการเชื่อมต่อกับ viewer ${viewerId}`);
+      });
+      peerConnections.clear();
+      
+      if (ws) { ws.close(); ws = null; }
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+      }
+      preview.srcObject = null;
+      document.getElementById('actualSettings').style.display = 'none';
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      roomIdGlobal = null;
+    }
+
+    async function ensureWs(roomId){
+      if (ws && ws.readyState === WebSocket.OPEN) return;
+      
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        console.log('📡 เชื่อมต่อ WebSocket สำเร็จ');
+        ws.send(JSON.stringify({ type: 'join', role: 'sender', roomId }));
+      };
+      
+      ws.onclose = () => {
+        console.log('📡 WebSocket ขาดการเชื่อมต่อ');
+        // Auto-reconnect if still streaming
+        if (isStreaming && roomIdGlobal && localStream) {
+          console.log('🔄 กำลังเชื่อมต่อ WebSocket ใหม่...');
+          setTimeout(() => ensureWs(roomIdGlobal), 2000);
+        }
+      };
+      
+      ws.onmessage = async (ev) => {
+        const data = JSON.parse(ev.data);
+        const { type, from } = data;
+        
+        if (type === 'answer') {
+          const pc = peerConnections.get(from);
+          if (pc) {
+            try {
+              await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+              console.log(`✅ รับ answer จาก viewer ${from} สำเร็จ`);
+            } catch (e) {
+              console.warn(`❌ Answer error จาก viewer ${from}:`, e);
+            }
+          }
+        } else if (type === 'candidate') {
+          const pc = peerConnections.get(from);
+          if (pc) {
+            try { 
+              await pc.addIceCandidate(data.candidate); 
+            } catch (e) {
+              console.warn(`❌ ICE candidate error จาก viewer ${from}:`, e);
+            }
+          }
+        } else if (type === 'need-offer') {
+          console.log(`📺 Viewer ${from} ขอ offer ใหม่`);
+          await createPeerForViewer(from, roomIdGlobal || roomId);
+        }
+      };
+      
+      ws.onerror = (error) => {
+        console.error('📡 WebSocket error:', error);
+      };
+    }
+
+    async function createPeerForViewer(viewerId, roomId) {
+      // Close existing connection for this viewer if any
+      if (peerConnections.has(viewerId)) {
+        peerConnections.get(viewerId).close();
+      }
+      
+      const pc = new RTCPeerConnection({ iceServers });
+      peerConnections.set(viewerId, pc);
+      
+      // Add tracks from transformed stream or original stream
+      const streamToSend = transformedStream || localStream;
+      streamToSend.getTracks().forEach(t => pc.addTrack(t, streamToSend));
+
+      pc.onicecandidate = (ev) => {
+        if (ev.candidate) {
+          ws?.send(JSON.stringify({ 
+            type: 'candidate', 
+            candidate: ev.candidate,
+            to: viewerId 
+          }));
+        }
+      };
+
+      // Monitor connection state for this viewer
+      pc.onconnectionstatechange = () => {
+        console.log(`🔗 Peer connection กับ viewer ${viewerId}:`, pc.connectionState);
+        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+          console.log(`🔄 Connection กับ viewer ${viewerId} ล้มเหลว`);
+          peerConnections.delete(viewerId);
+        }
+      };
+
+      const offer = await pc.createOffer({ offerToReceiveVideo: false, offerToReceiveAudio: false });
+      await pc.setLocalDescription(offer);
+      ws?.send(JSON.stringify({ 
+        type: 'offer', 
+        sdp: offer,
+        to: viewerId 
+      }));
+      
+      console.log(`📤 ส่ง offer ไปยัง viewer ${viewerId}`);
+    }
+
+    // Legacy function - removed since we use per-viewer connections
+    async function createPeer(roomId) {
+      console.log('⚠️ createPeer เก่าถูกเรียก - ใช้ createPeerForViewer แทน');
+    }
+
+    // Auto-restart function when camera fails
+    async function restart() {
+      if (!isStreaming || !roomIdGlobal) return;
+      
+      console.log('🔄 เริ่มกล้องใหม่...');
+      
+      // Close existing connections but keep room
+      peerConnections.forEach((pc, viewerId) => {
+        pc.close();
+      });
+      peerConnections.clear();
+      
+      if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+      }
+      
+      // Restart camera with same settings
+      await start();
+    }
+
+    // Monitor camera health
+    setInterval(() => {
+      if (isStreaming && localStream) {
+        const videoTracks = localStream.getVideoTracks();
+        if (videoTracks.length === 0 || videoTracks.every(track => !track.enabled || track.readyState === 'ended')) {
+          console.log('❌ กล้องหยุดทำงาน - เริ่มใหม่อัตโนมัติ');
+          restart();
+        }
+      }
+    }, 5000); // ตรวจสอบทุก 5 วินาที
+
+    // Prevent phone from sleeping 
+    document.addEventListener('touchstart', () => {
+      if (isStreaming) {
+        requestWakeLock();
+      }
+    });
+
+    // Handle page beforeunload to clean up
+    window.addEventListener('beforeunload', () => {
+      releaseWakeLock();
+    });
+
+    startBtn.onclick = start;
+    stopBtn.onclick = stop;
+
+    // Real-time FPS/Resolution change while streaming
+    fpsSelect.onchange = resolutionSelect.onchange = async () => {
+      if (localStream && localStream.active) {
+        const track = localStream.getVideoTracks()[0];
+        const fps = parseInt(fpsSelect.value);
+        const resolution = resolutionSelect.value;
+        
+        try {
+          const constraints = { frameRate: fps };
+          if (resolution !== 'auto') {
+            const [width, height] = resolution.split('x').map(Number);
+            constraints.width = width;
+            constraints.height = height;
+          }
+          
+          await track.applyConstraints(constraints);
+          
+          // Update display
+          const settings = track.getSettings();
+          const actualInfo = `จริง: ${settings.width}×${settings.height} @ ${settings.frameRate}fps`;
+          document.getElementById('actualSettings').textContent = actualInfo;
+          
+          console.log('Updated constraints applied:', settings);
+        } catch (error) {
+          console.warn('Cannot apply new constraints:', error.message);
+          alert('ไม่สามารถเปลี่ยนค่านี้ได้ในขณะที่กำลังสตรีม');
+        }
+      }
+    };
+
+    // First prompt for permissions to reveal camera labels (where possible)
+    (async () => {
+      try {
+        const tmp = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        tmp.getTracks().forEach(t => t.stop());
+      } catch {}
+      await listCameras();
+      initializeRoom(); // Auto-generate room ID after cameras loaded
+    })();
+  </script>
+  </div> <!-- end container -->
+</body>
+</html>

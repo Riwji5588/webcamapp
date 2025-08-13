@@ -1,0 +1,291 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OBS Webcam Source</title>
+  <style>
+    * { 
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box; 
+    }
+    
+    body { 
+      background: #000; 
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    #video {
+      width: 100vw; 
+      height: 100vh; 
+      object-fit: contain; 
+      background: #000;
+      display: block;
+    }
+    
+    /* Status overlay - auto-hides after connection */
+    #status-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: #fff;
+      padding: 20px 30px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+      text-align: center;
+      font-size: 16px;
+      z-index: 1000;
+      transition: opacity 0.5s ease;
+    }
+    
+    #status-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .status-text {
+      font-weight: 500;
+    }
+    
+    .room-info {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #aaa;
+    }
+    
+    /* Error states */
+    .error {
+      color: #ff6b6b;
+    }
+    
+    .success {
+      color: #51cf66;
+    }
+    
+    /* Connection quality indicator */
+    #quality-indicator {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ff6b6b;
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 999;
+    }
+    
+    #quality-indicator.connecting {
+      background: #ffd43b;
+      opacity: 1;
+      animation: pulse 1.5s infinite;
+    }
+    
+    #quality-indicator.connected {
+      background: #51cf66;
+      opacity: 1;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+  </style>
+</head>
+<body>
+  <video id="video" autoplay playsinline muted></video>
+  
+  <div id="quality-indicator"></div>
+  
+  <div id="status-overlay">
+    <div class="spinner"></div>
+    <div class="status-text" id="status-text">กำลังเชื่อมต่อกล้อง...</div>
+    <div class="room-info" id="room-info"></div>
+  </div>
+
+  <script>
+    const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host;
+    let ws, pc;
+
+    const video = document.getElementById('video');
+    const statusOverlay = document.getElementById('status-overlay');
+    const statusText = document.getElementById('status-text');
+    const roomInfo = document.getElementById('room-info');
+    const qualityIndicator = document.getElementById('quality-indicator');
+
+    function setStatus(text, type = 'normal') {
+      statusText.textContent = text;
+      statusText.className = `status-text ${type}`;
+      
+      // Update quality indicator
+      qualityIndicator.className = '';
+      if (type === 'connecting') {
+        qualityIndicator.classList.add('connecting');
+      } else if (type === 'success') {
+        qualityIndicator.classList.add('connected');
+      }
+    }
+
+    function hideStatusAfterDelay(delay = 3000) {
+      setTimeout(() => {
+        statusOverlay.classList.add('hidden');
+      }, delay);
+    }
+
+    async function connect(roomId) {
+      setStatus('กำลังเชื่อมต่อ...', 'connecting');
+      roomInfo.textContent = `Room: ${roomId}`;
+      
+      try {
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = () => {
+          ws.send(JSON.stringify({ type: 'join', role: 'viewer', roomId }));
+          setStatus('รอสัญญาณจากกล้อง...', 'connecting');
+        };
+        
+        ws.onmessage = async (ev) => {
+          const data = JSON.parse(ev.data);
+          console.log('📨 OBS รับข้อความ:', data.type);
+          
+          if (data.type === 'sender-available') {
+            setStatus('พบกล้อง กำลังเชื่อมต่อ...', 'connecting');
+            await createPeer();
+            ws?.send(JSON.stringify({ type: 'need-offer' }));
+          } else if (data.type === 'offer') {
+            console.log('📥 OBS รับ offer จาก sender');
+            if (!pc) await createPeer();
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            ws?.send(JSON.stringify({ type: 'answer', sdp: answer }));
+          } else if (data.type === 'candidate') {
+            if (pc) {
+              try { 
+                await pc.addIceCandidate(data.candidate); 
+                console.log('🔌 OBS เพิ่ม ICE candidate สำเร็จ');
+              } catch (e) {
+                console.warn('❌ OBS ICE candidate error:', e);
+              }
+            }
+          } else if (data.type === 'sender-gone') {
+            setStatus('กล้องหลุดการเชื่อมต่อ กำลังรอกลับมา...', 'connecting');
+            statusOverlay.classList.remove('hidden');
+            if (pc) { 
+              pc.close(); 
+              pc = null; 
+            }
+            video.srcObject = null;
+            // Auto-reconnect immediately when sender comes back
+            // No timeout needed - server will notify when sender rejoins
+          }
+        };
+        
+        ws.onerror = () => {
+          setStatus('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้', 'error');
+        };
+        
+        ws.onclose = () => {
+          setStatus('การเชื่อมต่อขาดหาย กำลังลองใหม่...', 'connecting');
+          statusOverlay.classList.remove('hidden');
+          // Retry connection after 2 seconds
+          setTimeout(() => connect(roomId), 2000);
+        };
+        
+      } catch (error) {
+        setStatus('เกิดข้อผิดพลาด: ' + error.message, 'error');
+      }
+    }
+
+    async function createPeer() {
+      pc = new RTCPeerConnection({ 
+        iceServers: [
+          { urls: ['stun:stun.l.google.com:19302'] },
+          { urls: ['stun:stun1.l.google.com:19302'] }
+        ]
+      });
+
+      pc.onicecandidate = (ev) => {
+        if (ev.candidate) {
+          ws?.send(JSON.stringify({ type: 'candidate', candidate: ev.candidate }));
+        }
+      };
+
+      pc.ontrack = (ev) => {
+        video.srcObject = ev.streams[0];
+        setStatus('เชื่อมต่อสำเร็จ!', 'success');
+        hideStatusAfterDelay(2000);
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log('Connection state:', pc.connectionState);
+        if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
+          setStatus('การเชื่อมต่อขัดข้อง กำลังลองใหม่...', 'error');
+          statusOverlay.classList.remove('hidden');
+        } else if (pc.connectionState === 'connected') {
+          setStatus('ออนไลน์', 'success');
+        }
+      };
+
+      // Retry mechanism
+      setTimeout(() => {
+        if (!video.srcObject) {
+          setStatus('กำลังลองเชื่อมต่อใหม่...', 'connecting');
+          ws?.send(JSON.stringify({ type: 'need-offer' }));
+        }
+      }, 8000);
+    }
+
+    // Auto-connect from URL parameters
+    const params = new URLSearchParams(location.search);
+    const roomId = params.get('room');
+    
+    if (roomId) {
+      connect(roomId);
+    } else {
+      setStatus('ไม่พบ Room ID ในลิงก์', 'error');
+      roomInfo.textContent = 'ใช้: ?room=ชื่อห้อง';
+    }
+
+    // Keyboard shortcuts for OBS control
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'r' || e.key === 'R') {
+        // Refresh connection
+        if (roomId) {
+          setStatus('กำลังรีเฟรช...', 'connecting');
+          statusOverlay.classList.remove('hidden');
+          if (pc) pc.close();
+          if (ws) ws.close();
+          setTimeout(() => connect(roomId), 500);
+        }
+      }
+    });
+
+    // Prevent context menu
+    document.addEventListener('contextmenu', e => e.preventDefault());
+  </script>
+</body>
+</html>
